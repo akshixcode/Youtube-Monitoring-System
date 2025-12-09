@@ -1,0 +1,1085 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Global Outage Map</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #0f0f0f;
+            color: #f1f1f1;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: linear-gradient(to right, #111, #222);
+            padding: 25px 30px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            position: relative;
+            border-left: 5px solid #ff0000;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .logo {
+            font-size: 2.8rem;
+            color: #ff0000;
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #ff0000, #ff4444);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            color: #aaa;
+            margin-top: 5px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 12px 25px;
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .pulse {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #0f9d58;
+            box-shadow: 0 0 0 0 rgba(15, 157, 88, 0.7);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(15, 157, 88, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(15, 157, 88, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(15, 157, 88, 0);
+            }
+        }
+        
+        .pulse.outage {
+            background-color: #ff0000;
+            box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
+            animation: pulse-red 1.5s infinite;
+        }
+        
+        @keyframes pulse-red {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+            }
+        }
+        
+        .dashboard-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 1200px) {
+            .dashboard-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .map-container {
+            background-color: #111;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            height: 650px;
+            position: relative;
+        }
+        
+        #outageMap {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+        }
+        
+        .map-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background-color: rgba(17, 17, 17, 0.85);
+            padding: 15px;
+            border-radius: 10px;
+            width: 300px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+        }
+        
+        .map-controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .map-btn {
+            background-color: #222;
+            border: none;
+            color: #f1f1f1;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .map-btn:hover {
+            background-color: #333;
+        }
+        
+        .map-btn.active {
+            background-color: #ff0000;
+            color: white;
+        }
+        
+        .legend {
+            margin-top: 15px;
+        }
+        
+        .legend-title {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .legend-color.major {
+            background-color: #ff0000;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
+        
+        .legend-color.partial {
+            background-color: #f4b400;
+            box-shadow: 0 0 10px rgba(244, 180, 0, 0.5);
+        }
+        
+        .legend-color.minor {
+            background-color: #4285f4;
+            box-shadow: 0 0 10px rgba(66, 133, 244, 0.5);
+        }
+        
+        .legend-color.resolved {
+            background-color: #0f9d58;
+            box-shadow: 0 0 10px rgba(15, 157, 88, 0.5);
+        }
+        
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .incidents-panel {
+            background-color: #111;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            flex-grow: 1;
+            border-left: 5px solid #ff0000;
+        }
+        
+        .panel-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #f1f1f1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .incident-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        .incident-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .incident-list::-webkit-scrollbar-track {
+            background: #222;
+            border-radius: 10px;
+        }
+        
+        .incident-list::-webkit-scrollbar-thumb {
+            background: #ff0000;
+            border-radius: 10px;
+        }
+        
+        .incident-item {
+            background-color: #1a1a1a;
+            border-radius: 8px;
+            padding: 18px;
+            margin-bottom: 15px;
+            border-left: 4px solid #ff0000;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .incident-item:hover {
+            background-color: #222;
+            transform: translateX(5px);
+        }
+        
+        .incident-item.active {
+            background-color: #2a1a1a;
+            border-left-color: #ff4444;
+        }
+        
+        .incident-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .incident-region {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .incident-time {
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+        
+        .incident-duration {
+            display: inline-block;
+            padding: 4px 10px;
+            background-color: #222;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin-right: 10px;
+        }
+        
+        .incident-impact {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .impact-high {
+            background-color: rgba(255, 0, 0, 0.2);
+            color: #ff6666;
+        }
+        
+        .impact-medium {
+            background-color: rgba(244, 180, 0, 0.2);
+            color: #f4b400;
+        }
+        
+        .impact-low {
+            background-color: rgba(66, 133, 244, 0.2);
+            color: #66aaff;
+        }
+        
+        .live-data-panel {
+            background-color: #111;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            border-left: 5px solid #4285f4;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-box {
+            background-color: #1a1a1a;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-box:hover {
+            transform: translateY(-3px);
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #f1f1f1;
+        }
+        
+        .stat-label {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-top: 5px;
+        }
+        
+        .realtime-update {
+            background-color: #1a1a1a;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            border-left: 4px solid #0f9d58;
+        }
+        
+        .update-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .update-time {
+            font-size: 0.85rem;
+            color: #0f9d58;
+        }
+        
+        .update-text {
+            font-size: 0.9rem;
+            color: #ccc;
+            line-height: 1.5;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 25px;
+            color: #666;
+            font-size: 0.9rem;
+            border-top: 1px solid #222;
+            margin-top: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .map-overlay {
+                position: relative;
+                top: 0;
+                right: 0;
+                width: 100%;
+                margin-bottom: 15px;
+            }
+            
+            .map-container {
+                height: 500px;
+            }
+        }
+        
+        .incident-details {
+            display: none;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #333;
+        }
+        
+        .incident-details.active {
+            display: block;
+        }
+        
+        .detail-row {
+            display: flex;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .detail-label {
+            color: #aaa;
+            width: 120px;
+        }
+        
+        .detail-value {
+            color: #f1f1f1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="logo-container">
+                    <div class="logo">
+                        <i class="fab fa-youtube"></i>
+                    </div>
+                    <div>
+                        <h1>YouTube Global Outage Map</h1>
+                        <div class="subtitle">Real-time tracking of YouTube service disruptions worldwide</div>
+                    </div>
+                </div>
+                <div class="status-indicator">
+                    <div class="pulse"></div>
+                    <div>
+                        <div>System Status: <strong style="color: #0f9d58;">Stable</strong></div>
+                        <div style="font-size: 0.85rem; color: #aaa;">Last updated: Just now</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <div class="dashboard-content">
+            <div class="map-container">
+                <div id="outageMap"></div>
+                <div class="map-overlay">
+                    <div class="map-controls">
+                        <button class="map-btn active" id="btnLive">
+                            <i class="fas fa-bolt"></i> Live Incidents
+                        </button>
+                        <button class="map-btn" id="btnRecent">
+                            <i class="fas fa-history"></i> Last 24h
+                        </button>
+                        <button class="map-btn" id="btnAll">
+                            <i class="fas fa-globe"></i> All Regions
+                        </button>
+                    </div>
+                    <div class="legend">
+                        <div class="legend-title">
+                            <span>Incident Severity</span>
+                            <span id="incidentCount">7 Active</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color major"></div>
+                            <span>Major Outage</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color partial"></div>
+                            <span>Partial Outage</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color minor"></div>
+                            <span>Minor Disruption</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color resolved"></div>
+                            <span>Recently Resolved</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sidebar">
+                <div class="incidents-panel">
+                    <div class="panel-title">
+                        <span>Recent Incidents</span>
+                        <span style="font-size: 0.9rem; color: #aaa;" id="lastUpdate">Updated: 2 min ago</span>
+                    </div>
+                    <div class="incident-list" id="incidentList">
+                        <!-- Incidents will be loaded here dynamically -->
+                    </div>
+                </div>
+                
+                <div class="live-data-panel">
+                    <div class="panel-title">
+                        <span><i class="fas fa-chart-line"></i> Live Statistics</span>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="stat-value" id="affectedUsers">42M</div>
+                            <div class="stat-label">Users Affected</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="activeIncidents">7</div>
+                            <div class="stat-label">Active Incidents</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="avgDuration">38m</div>
+                            <div class="stat-label">Avg. Duration</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" id="regionsAffected">12</div>
+                            <div class="stat-label">Regions Affected</div>
+                        </div>
+                    </div>
+                    
+                    <div class="realtime-update">
+                        <div class="update-header">
+                            <strong>Latest Update</strong>
+                            <span class="update-time">15:42 UTC</span>
+                        </div>
+                        <div class="update-text" id="latestUpdateText">
+                            Partial outage detected in Europe. Engineers are investigating the issue.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>YouTube Global Outage Map • Data is updated in real-time from monitoring systems</p>
+            <p>This is a demonstration tool for visualizing service disruptions</p>
+        </footer>
+    </div>
+
+    <script>
+        // Initialize map
+        let map = L.map('outageMap').setView([20, 0], 2);
+        
+        // Add tile layer (dark theme)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 18
+        }).addTo(map);
+        
+        // Incident data - in a real app, this would come from an API
+        const incidents = [
+            {
+                id: 1,
+                region: "North America - East",
+                severity: "major",
+                lat: 40.0,
+                lng: -75.0,
+                duration: "1h 22m",
+                startTime: "2023-11-14 14:30 UTC",
+                usersAffected: "18M",
+                status: "active",
+                details: "Video streaming and upload services experiencing disruptions. Engineers are working on a fix. Estimated resolution time: 30 minutes."
+            },
+            {
+                id: 2,
+                region: "Europe - Central",
+                severity: "partial",
+                lat: 50.0,
+                lng: 10.0,
+                duration: "45m",
+                startTime: "2023-11-14 09:15 UTC",
+                usersAffected: "12M",
+                status: "active",
+                details: "Intermittent playback issues reported. Some users experiencing buffering problems."
+            },
+            {
+                id: 3,
+                region: "Asia-Pacific - Southeast",
+                severity: "minor",
+                lat: 15.0,
+                lng: 105.0,
+                duration: "25m",
+                startTime: "2023-11-14 03:40 UTC",
+                usersAffected: "8M",
+                status: "active",
+                details: "Localized disruptions to YouTube Music services. Main video platform is operational."
+            },
+            {
+                id: 4,
+                region: "South America - Brazil",
+                severity: "partial",
+                lat: -15.0,
+                lng: -47.0,
+                duration: "1h 10m",
+                startTime: "2023-11-13 22:20 UTC",
+                usersAffected: "6M",
+                status: "resolved",
+                details: "Service has been restored. All systems are now operational."
+            },
+            {
+                id: 5,
+                region: "Australia - East Coast",
+                severity: "minor",
+                lat: -33.5,
+                lng: 151.0,
+                duration: "18m",
+                startTime: "2023-11-13 18:50 UTC",
+                usersAffected: "3M",
+                status: "active",
+                details: "Limited disruption to live streaming functionality."
+            },
+            {
+                id: 6,
+                region: "Africa - South",
+                severity: "partial",
+                lat: -30.0,
+                lng: 25.0,
+                duration: "52m",
+                startTime: "2023-11-13 12:15 UTC",
+                usersAffected: "2M",
+                status: "resolved",
+                details: "Issue resolved after network routing problems were identified and fixed."
+            },
+            {
+                id: 7,
+                region: "Middle East - Gulf",
+                severity: "major",
+                lat: 25.0,
+                lng: 51.0,
+                duration: "2h 05m",
+                startTime: "2023-11-13 08:30 UTC",
+                usersAffected: "5M",
+                status: "active",
+                details: "Widespread outage affecting multiple services. Priority fix in progress."
+            },
+            {
+                id: 8,
+                region: "Japan - Tokyo",
+                severity: "minor",
+                lat: 35.7,
+                lng: 139.7,
+                duration: "15m",
+                startTime: "2023-11-12 23:10 UTC",
+                usersAffected: "4M",
+                status: "resolved",
+                details: "Brief connectivity issues due to regional network maintenance."
+            },
+            {
+                id: 9,
+                region: "India - Mumbai",
+                severity: "partial",
+                lat: 19.1,
+                lng: 72.9,
+                duration: "38m",
+                startTime: "2023-11-12 16:45 UTC",
+                usersAffected: "15M",
+                status: "active",
+                details: "Intermittent service disruptions during peak hours. Engineers monitoring."
+            },
+            {
+                id: 10,
+                region: "Europe - UK",
+                severity: "major",
+                lat: 51.5,
+                lng: -0.1,
+                duration: "1h 45m",
+                startTime: "2023-11-12 11:20 UTC",
+                usersAffected: "10M",
+                status: "resolved",
+                details: "Major outage resolved. Services have been restored to normal operation."
+            }
+        ];
+        
+        // Store markers for later manipulation
+        let markers = [];
+        
+        // Function to get color based on severity
+        function getSeverityColor(severity, status) {
+            if (status === 'resolved') return '#0f9d58';
+            
+            switch(severity) {
+                case 'major': return '#ff0000';
+                case 'partial': return '#f4b400';
+                case 'minor': return '#4285f4';
+                default: return '#8e8e8e';
+            }
+        }
+        
+        // Function to get icon based on severity
+        function getSeverityIcon(severity, status) {
+            const color = getSeverityColor(severity, status);
+            const pulseClass = status === 'active' ? 'pulse-animation' : '';
+            
+            return L.divIcon({
+                className: `custom-marker ${pulseClass}`,
+                html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 10px ${color};"></div>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+        }
+        
+        // Function to add incidents to map
+        function addIncidentsToMap(filter = 'all') {
+            // Clear existing markers
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+            
+            // Filter incidents based on selection
+            let filteredIncidents = incidents;
+            
+            if (filter === 'active') {
+                filteredIncidents = incidents.filter(incident => incident.status === 'active');
+            } else if (filter === 'recent') {
+                // Filter for incidents in last 24h (simplified logic)
+                filteredIncidents = incidents.filter(incident => incident.id <= 7);
+            }
+            
+            // Add markers for each incident
+            filteredIncidents.forEach(incident => {
+                const marker = L.marker([incident.lat, incident.lng], {
+                    icon: getSeverityIcon(incident.severity, incident.status)
+                }).addTo(map);
+                
+                // Create popup content
+                const popupContent = `
+                    <div style="min-width: 250px;">
+                        <h3 style="margin: 0 0 10px 0; color: #333; border-bottom: 2px solid ${getSeverityColor(incident.severity, incident.status)}; padding-bottom: 5px;">
+                            ${incident.region}
+                        </h3>
+                        <div style="margin-bottom: 8px;">
+                            <strong>Status:</strong> 
+                            <span style="color: ${incident.status === 'active' ? '#ff0000' : '#0f9d58'}; font-weight: bold;">
+                                ${incident.status === 'active' ? 'ACTIVE' : 'RESOLVED'}
+                            </span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <strong>Severity:</strong> 
+                            <span style="color: ${getSeverityColor(incident.severity, incident.status)}; font-weight: bold; text-transform: uppercase;">
+                                ${incident.severity}
+                            </span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <strong>Duration:</strong> ${incident.duration}
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <strong>Users Affected:</strong> ${incident.usersAffected}
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <strong>Started:</strong> ${incident.startTime}
+                        </div>
+                        <div style="margin-top: 10px; font-size: 0.9rem; color: #666;">
+                            ${incident.details}
+                        </div>
+                    </div>
+                `;
+                
+                marker.bindPopup(popupContent);
+                
+                // Store marker reference
+                markers.push(marker);
+                
+                // Add click event to show details in sidebar
+                marker.on('click', function() {
+                    showIncidentDetails(incident.id);
+                });
+            });
+            
+            // Update incident count
+            document.getElementById('incidentCount').textContent = `${filteredIncidents.length} ${filter === 'active' ? 'Active' : 'Incidents'}`;
+            
+            // Update stats
+            updateStats(filteredIncidents);
+        }
+        
+        // Function to update statistics
+        function updateStats(filteredIncidents) {
+            const activeIncidents = filteredIncidents.filter(i => i.status === 'active').length;
+            const totalUsers = filteredIncidents.reduce((sum, incident) => {
+                const users = parseInt(incident.usersAffected.replace('M', '')) || 0;
+                return sum + users;
+            }, 0);
+            
+            document.getElementById('affectedUsers').textContent = `${totalUsers}M`;
+            document.getElementById('activeIncidents').textContent = activeIncidents;
+            document.getElementById('regionsAffected').textContent = filteredIncidents.length;
+            
+            // Calculate average duration
+            if (filteredIncidents.length > 0) {
+                const totalMinutes = filteredIncidents.reduce((sum, incident) => {
+                    const duration = incident.duration;
+                    if (duration.includes('h')) {
+                        const parts = duration.split('h');
+                        const hours = parseInt(parts[0]) || 0;
+                        const minutes = parseInt(parts[1].replace('m', '')) || 0;
+                        return sum + (hours * 60) + minutes;
+                    } else {
+                        const minutes = parseInt(duration.replace('m', '')) || 0;
+                        return sum + minutes;
+                    }
+                }, 0);
+                
+                const avgMinutes = Math.round(totalMinutes / filteredIncidents.length);
+                document.getElementById('avgDuration').textContent = avgMinutes > 60 
+                    ? `${Math.floor(avgMinutes/60)}h ${avgMinutes%60}m` 
+                    : `${avgMinutes}m`;
+            }
+        }
+        
+        // Function to render incident list
+        function renderIncidentList(filter = 'all') {
+            const incidentList = document.getElementById('incidentList');
+            incidentList.innerHTML = '';
+            
+            // Filter incidents based on selection
+            let filteredIncidents = incidents;
+            
+            if (filter === 'active') {
+                filteredIncidents = incidents.filter(incident => incident.status === 'active');
+            } else if (filter === 'recent') {
+                // Filter for incidents in last 24h (simplified logic)
+                filteredIncidents = incidents.filter(incident => incident.id <= 7);
+            }
+            
+            // Sort by most recent (higher ID = more recent in our simulation)
+            filteredIncidents.sort((a, b) => b.id - a.id);
+            
+            // Create incident items
+            filteredIncidents.forEach(incident => {
+                const incidentItem = document.createElement('div');
+                incidentItem.className = 'incident-item';
+                incidentItem.dataset.id = incident.id;
+                
+                // Determine impact class
+                let impactClass = 'impact-low';
+                if (incident.severity === 'major') impactClass = 'impact-high';
+                else if (incident.severity === 'partial') impactClass = 'impact-medium';
+                
+                incidentItem.innerHTML = `
+                    <div class="incident-header">
+                        <div class="incident-region">${incident.region}</div>
+                        <div class="incident-time">${incident.startTime}</div>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <span class="incident-duration">${incident.duration}</span>
+                        <span class="incident-impact ${impactClass}">${incident.severity.toUpperCase()}</span>
+                    </div>
+                    <div style="color: #aaa; font-size: 0.9rem;">
+                        <i class="fas fa-users"></i> ${incident.usersAffected} users affected
+                        <span style="float: right; color: ${incident.status === 'active' ? '#ff6666' : '#0f9d58'}">
+                            ${incident.status === 'active' ? 'ACTIVE' : 'RESOLVED'}
+                        </span>
+                    </div>
+                    <div class="incident-details" id="details-${incident.id}">
+                        <div class="detail-row">
+                            <div class="detail-label">Start Time:</div>
+                            <div class="detail-value">${incident.startTime}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Duration:</div>
+                            <div class="detail-value">${incident.duration}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Status:</div>
+                            <div class="detail-value" style="color: ${incident.status === 'active' ? '#ff6666' : '#0f9d58'}">
+                                ${incident.status === 'active' ? 'Active Outage' : 'Resolved'}
+                            </div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Details:</div>
+                            <div class="detail-value">${incident.details}</div>
+                        </div>
+                    </div>
+                `;
+                
+                // Add click event to show details
+                incidentItem.addEventListener('click', function() {
+                    // Remove active class from all items
+                    document.querySelectorAll('.incident-item').forEach(item => {
+                        item.classList.remove('active');
+                        const detailsId = item.dataset.id;
+                        document.getElementById(`details-${detailsId}`).classList.remove('active');
+                    });
+                    
+                    // Add active class to clicked item
+                    this.classList.add('active');
+                    document.getElementById(`details-${this.dataset.id}`).classList.add('active');
+                    
+                    // Center map on this incident
+                    const incident = incidents.find(i => i.id == this.dataset.id);
+                    map.setView([incident.lat, incident.lng], 4);
+                    
+                    // Open popup on map
+                    markers.forEach(marker => {
+                        if (marker.getLatLng().lat === incident.lat && marker.getLatLng().lng === incident.lng) {
+                            marker.openPopup();
+                        }
+                    });
+                });
+                
+                incidentList.appendChild(incidentItem);
+            });
+        }
+        
+        // Function to show incident details
+        function showIncidentDetails(id) {
+            // Find and activate the corresponding incident in the list
+            const incidentItem = document.querySelector(`.incident-item[data-id="${id}"]`);
+            if (incidentItem) {
+                // Remove active class from all items
+                document.querySelectorAll('.incident-item').forEach(item => {
+                    item.classList.remove('active');
+                    const detailsId = item.dataset.id;
+                    document.getElementById(`details-${detailsId}`).classList.remove('active');
+                });
+                
+                // Add active class to clicked item
+                incidentItem.classList.add('active');
+                document.getElementById(`details-${id}`).classList.add('active');
+                
+                // Scroll to the incident
+                incidentItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+        
+        // Initialize the map with all incidents
+        addIncidentsToMap('all');
+        renderIncidentList('all');
+        
+        // Set up button events
+        document.getElementById('btnLive').addEventListener('click', function() {
+            document.querySelectorAll('.map-btn').forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            addIncidentsToMap('active');
+            renderIncidentList('active');
+            document.getElementById('latestUpdateText').textContent = "Showing active incidents only. Engineers are working to resolve all issues.";
+        });
+        
+        document.getElementById('btnRecent').addEventListener('click', function() {
+            document.querySelectorAll('.map-btn').forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            addIncidentsToMap('recent');
+            renderIncidentList('recent');
+            document.getElementById('latestUpdateText').textContent = "Showing incidents from the last 24 hours. Some may already be resolved.";
+        });
+        
+        document.getElementById('btnAll').addEventListener('click', function() {
+            document.querySelectorAll('.map-btn').forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            addIncidentsToMap('all');
+            renderIncidentList('all');
+            document.getElementById('latestUpdateText').textContent = "Showing all incidents from the past week. Data updates every 5 minutes.";
+        });
+        
+        // Simulate real-time updates
+        function simulateRealTimeUpdates() {
+            // Update timestamp
+            const now = new Date();
+            const updateTime = now.toISOString().substr(11, 8) + ' UTC';
+            document.getElementById('lastUpdate').textContent = `Updated: ${updateTime}`;
+            
+            // Randomly change status of one incident (for demo purposes)
+            const randomIncidentIndex = Math.floor(Math.random() * incidents.length);
+            const incident = incidents[randomIncidentIndex];
+            
+            // Occasionally change status from active to resolved or vice versa
+            if (Math.random() > 0.7) {
+                if (incident.status === 'active') {
+                    incident.status = 'resolved';
+                } else {
+                    incident.status = 'active';
+                }
+                
+                // Update map and list
+                const activeFilter = document.querySelector('.map-btn.active').id;
+                let filterType = 'all';
+                if (activeFilter === 'btnLive') filterType = 'active';
+                else if (activeFilter === 'btnRecent') filterType = 'recent';
+                
+                addIncidentsToMap(filterType);
+                renderIncidentList(filterType);
+                
+                // Update latest update text
+                document.getElementById('latestUpdateText').textContent = 
+                    `Status updated for ${incident.region}. Issue is now ${incident.status === 'active' ? 'ongoing' : 'resolved'}.`;
+            }
+        }
+        
+        // Update every 30 seconds
+        setInterval(simulateRealTimeUpdates, 30000);
+        
+        // Initialize with a random incident active
+        setTimeout(() => {
+            showIncidentDetails(1);
+        }, 1000);
+        
+        // Add custom CSS for pulsing markers
+        const style = document.createElement('style');
+        style.textContent = `
+            .pulse-animation::before {
+                content: '';
+                position: absolute;
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                background-color: inherit;
+                opacity: 0.4;
+                animation: pulse-marker 2s infinite;
+                top: -8px;
+                left: -8px;
+                z-index: -1;
+            }
+            
+            @keyframes pulse-marker {
+                0% {
+                    transform: scale(0.8);
+                    opacity: 0.4;
+                }
+                70% {
+                    transform: scale(1.5);
+                    opacity: 0;
+                }
+                100% {
+                    transform: scale(0.8);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
